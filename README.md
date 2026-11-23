@@ -185,9 +185,9 @@ Deploy the backend as its own Vercel project:
 ```dotenv
 MONGODB_URI=your_mongodb_connection_string
 NODE_ENV=production
-CLIENT_ORIGIN=https://your-client-domain.vercel.app
+CLIENT_ORIGIN=https://closer-alpha.vercel.app
 ```
 
 4. Deploy. The `server/vercel.json` configuration builds `server.js` as the Vercel Node.js function and routes requests to it.
 
-Use a comma-separated `CLIENT_ORIGIN` value if separate preview or production client domains are allowed. MongoDB Atlas must also allow Vercel connections under Network Access. The frontend currently uses relative `/api` URLs, and `API_PROXY_TARGET` only configures the local Vite development proxy. If you deploy the frontend separately, configure its hosting platform to proxy/rewrite `/api` requests to this backend.
+Use a comma-separated `CLIENT_ORIGIN` value if separate preview or production client domains are allowed. MongoDB Atlas must also allow Vercel connections under Network Access. The frontend uses relative `/api` URLs; [client/vercel.json](./client/vercel.json) rewrites them to `https://c-loser.vercel.app`. `API_PROXY_TARGET` only configures the local Vite development proxy.

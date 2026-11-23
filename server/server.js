@@ -55,6 +55,7 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
+  //  res.send("Closer API is not running.");
   res.json({ status: "ok" });
 });
 
