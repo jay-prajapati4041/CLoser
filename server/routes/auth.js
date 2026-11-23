@@ -9,10 +9,19 @@ import { COOKIE_NAME, cookieOptions, requireAuth } from "../middleware/requireAu
 
 const router = express.Router();
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+function normalizeOrigin(value) {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 const allowedOrigins = new Set(
   (process.env.CLIENT_ORIGIN || "http://localhost:5173")
     .split(",")
-    .map((origin) => origin.trim())
+    .map(normalizeOrigin)
     .filter(Boolean)
 );
 
@@ -25,7 +34,7 @@ const authLimiter = rateLimit({
 });
 
 function requireTrustedOrigin(req, res, next) {
-  const origin = req.get("origin");
+  const origin = normalizeOrigin(req.get("origin") || "");
   if (!origin || !allowedOrigins.has(origin)) {
     return res.status(403).json({ error: "This request origin is not allowed." });
   }
@@ -117,5 +126,5 @@ router.get("/me", requireAuth, (req, res) => {
   res.json({ user: publicUser(req.user) });
 });
 
-export { allowedOrigins };
+export { allowedOrigins, normalizeOrigin };
 export default router;

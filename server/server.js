@@ -6,7 +6,7 @@ import express from "express";
 import mongoose from "mongoose";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-import authRouter, { allowedOrigins } from "./routes/auth.js";
+import authRouter, { allowedOrigins, normalizeOrigin } from "./routes/auth.js";
 import leadsRouter from "./routes/leads.js";
 
 const app = express();
@@ -39,7 +39,7 @@ app.use("/api", async (_req, _res, next) => {
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
         return callback(null, true);
       }
       return callback(new Error("Origin not allowed"));

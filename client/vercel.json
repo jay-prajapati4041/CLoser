@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://closerserver.vercel.app/api/:path*"
+      "destination": "https://c-loser.vercel.app/api/:path*"
     }
   ]
 }
