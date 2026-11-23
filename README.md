@@ -1,39 +1,175 @@
-# Closer — Lead & Follow-up Tracker
+# Closer
 
-The client uses React, and the API uses native JavaScript ES modules. Module 1 sets up private user accounts and the authentication foundation for the lead tracker.
+Closer is a full-stack lead and follow-up tracker. It provides private account workspaces, lead management, search and filtering, follow-up reminders, and CSV import/export.
 
-## Run locally
+## Tech stack
 
-Requirements: Node.js 20.19+ and MongoDB 7+ (local or hosted).
+- **Frontend:** React 19, Vite 8
+- **Backend:** Node.js, Express 5
+- **Database:** MongoDB with Mongoose 9
+- **Authentication:** bcrypt password hashes and opaque HttpOnly session cookies
 
-1. Copy `server/.env.example` to `server/.env` and set `MONGODB_URI` to your database connection string.
-2. In one terminal, run `cd server`, `npm install`, then `npm run dev`.
-3. In another terminal, run `cd client`, `npm install`, then `npm run dev`.
-4. Open the Vite URL (usually `http://localhost:5173`).
+## Features
 
-The client proxies `/api` requests to `http://localhost:5000`. Set `API_PROXY_TARGET` if your API runs elsewhere. Set `CLIENT_ORIGIN` on the server to the exact client origin; multiple allowed origins can be comma-separated.
+- Register and sign in with account-specific sessions
+- Create, view, edit, and delete leads
+- Search leads by company, contact person, or phone
+- Filter by status or city and sort by follow-up date or creation date
+- Track overdue, due-today, and upcoming follow-ups
+- Mark a lead as contacted or reschedule its next follow-up
+- Import leads from CSV and export the current filtered list
+- Keep lead records isolated to the signed-in account
 
-## Authentication foundation
+## Lead fields
 
-- Register, sign in, and sign out are backed by MongoDB.
-- Passwords are hashed with bcrypt; the password hash is excluded from normal user queries.
-- Sessions use random opaque tokens in `HttpOnly`, `SameSite=Lax` cookies. Only a SHA-256 hash of each token is stored in MongoDB; sessions expire after seven days and are invalidated on sign out.
-- Authentication endpoints have an attempt limit, and state-changing requests require an allowed browser origin.
-- `GET /api/auth/me` and `GET /api/leads` are protected. Leads are queried by their required `owner` field so one account cannot read another account's records.
-- Client components and server modules include short comments describing their purpose.
+| Field | Notes |
+|---|---|
+| `company` | Required; up to 160 characters |
+| `contactPerson` | Optional; up to 120 characters |
+| `phone` | Optional; up to 40 characters |
+| `email` | Optional; must be a valid email; up to 254 characters |
+| `city` | Optional; up to 100 characters |
+| `status` | `New`, `Contacted`, `Meeting`, `Won`, or `Lost` |
+| `nextFollowUpDate` | Optional date in `YYYY-MM-DD` format |
 
-Set `NODE_ENV=production` when serving over HTTPS so session cookies are marked `Secure`. The API does not start without `MONGODB_URI`.
+## Prerequisites
 
-## Module 2: Lead management
+- Node.js 20.19 or later
+- npm
+- MongoDB 7 or later, locally or from a hosted provider
 
-- Add, list, view, edit, and delete leads with company, contact, phone, email, city, status, and next follow-up date.
-- Lead create, list, detail, update, and delete endpoints all require a valid session and scope database queries to the signed-in user.
-- Client forms and server validation enforce required company names, valid email addresses, allowed statuses, date format, and field limits. The client cannot set a lead owner.
-- Run `cd server && npm test` to run the lead CRUD and ownership checks without connecting to MongoDB.
+## Local setup
 
-## Module 3: Follow-up management
+1. Configure the API:
 
-- `GET /api/leads/follow-ups` returns only the signed-in user's scheduled leads that are not Won or Lost.
-- The dashboard calculates Overdue, Due Today, and Upcoming from the saved date and the user's current local calendar day; the calculated category is never stored in MongoDB.
-- Use Reschedule to update the saved follow-up date, or Mark contacted to change the lead status to Contacted. Won/Lost leads are removed from active reminders.
-- Run `cd client && npm test` for date-boundary and terminal-status classification tests.
+   ```powershell
+   cd server
+   Copy-Item .env.example .env
+   npm install
+   ```
+
+2. Edit `server/.env` if needed:
+
+   ```dotenv
+   PORT=5000
+   NODE_ENV=development
+   MONGODB_URI=mongodb://127.0.0.1:27017/closer
+   CLIENT_ORIGIN=http://localhost:5173
+   ```
+
+   `MONGODB_URI` is required. The API will not start without it.
+
+3. Install and start the client:
+
+   ```powershell
+   cd ..\client
+   npm install
+   npm run dev
+   ```
+
+4. In a separate terminal, start the API:
+
+   ```powershell
+   cd server
+   npm run dev
+   ```
+
+Open the Vite URL, normally `http://localhost:5173`. The Vite development server proxies `/api` requests to `http://localhost:5000`.
+
+### Environment variables
+
+**Server**
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `MONGODB_URI` | MongoDB connection string | Required |
+| `PORT` | API listening port | `5000` |
+| `NODE_ENV` | Set to `production` for secure HTTPS cookies | `development` |
+| `CLIENT_ORIGIN` | Allowed browser origin(s), separated by commas | `http://localhost:5173` |
+
+**Client/Vite**
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `API_PROXY_TARGET` | API target for the Vite `/api` proxy | `http://localhost:5000` |
+
+Set `NODE_ENV=production` when the application is served over HTTPS. For multiple allowed client origins, use a comma-separated value for `CLIENT_ORIGIN`.
+
+## CSV import and export
+
+The import supports these column names:
+
+```csv
+companyName,contactPerson,phone,email,city,status,nextFollowUpDate
+Acme Inc,Avery Morgan,+1 555 0100,avery@acme.example,Chicago,New,2026-12-01
+```
+
+The header may use `companyName` or `company`; `contactPerson`, `phone`, `email`, `city`, `status`, and `nextFollowUpDate` are optional. Valid rows are created for the signed-in user. Existing and in-file duplicates are reported as failed rows. CSV text is limited to 5 MB.
+
+CSV export downloads the signed-in user's leads with the active search, status, city, and sort filters applied.
+
+## API routes
+
+### Authentication
+
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/api/auth/register` | Create an account and session |
+| `POST` | `/api/auth/login` | Sign in |
+| `POST` | `/api/auth/logout` | Invalidate the current session |
+| `GET` | `/api/auth/me` | Return the signed-in user |
+
+Authentication state is stored in the `closer_session` HttpOnly cookie. Session tokens are random 32-byte values; only their SHA-256 hashes are saved in MongoDB. Sessions expire after seven days.
+
+### Leads
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/leads` | List filtered leads owned by the signed-in user |
+| `POST` | `/api/leads` | Create a lead |
+| `GET` | `/api/leads/follow-ups` | List scheduled, non-terminal follow-ups |
+| `GET` | `/api/leads/:id` | Return one owned lead |
+| `PATCH` | `/api/leads/:id` | Update one owned lead |
+| `DELETE` | `/api/leads/:id` | Delete one owned lead |
+| `POST` | `/api/leads/import` | Import CSV text |
+| `GET` | `/api/leads/export.csv` | Download leads as CSV |
+
+List requests accept `search`, `status`, `city`, and `sort` query parameters. Sort values are `followUpAsc`, `followUpDesc`, `newest`, and `oldest`.
+
+## Tests
+
+Run the server tests:
+
+```powershell
+cd server
+npm test
+```
+
+The server test suite mocks the database and verifies lead CRUD behavior and user ownership isolation without a live MongoDB instance.
+
+Run the client tests:
+
+```powershell
+cd client
+npm test
+```
+
+The client test suite verifies local-calendar follow-up classification and terminal lead statuses.
+
+## Production build
+
+Build the frontend:
+
+```powershell
+cd client
+npm run build
+```
+
+Start the API:
+
+```powershell
+cd server
+npm start
+```
+
+The API exposes `/api/health` for health checks and `/` as a basic API status response.
