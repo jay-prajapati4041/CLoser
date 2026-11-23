@@ -11,6 +11,31 @@ import leadsRouter from "./routes/leads.js";
 
 const app = express();
 
+let databaseConnection;
+
+async function ensureDatabase() {
+  if (mongoose.connection.readyState === 1) return;
+  if (!process.env.MONGODB_URI) {
+    throw new Error("MONGODB_URI is not configured");
+  }
+  if (!databaseConnection) {
+    databaseConnection = mongoose.connect(process.env.MONGODB_URI);
+  }
+  await databaseConnection;
+}
+
+app.use("/api", async (_req, _res, next) => {
+  if (!process.env.VERCEL) {
+    return next();
+  }
+  try {
+    await ensureDatabase();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -52,11 +77,7 @@ app.use((error, _req, res, _next) => {
 });
 
 async function startServer() {
-  if (!process.env.MONGODB_URI) {
-    throw new Error("MONGODB_URI is not configured");
-  }
-
-  await mongoose.connect(process.env.MONGODB_URI);
+  await ensureDatabase();
   const port = Number(process.env.PORT) || 5000;
   const server = app.listen(port, () => {
     console.log(`Closer API listening on port ${port}`);
@@ -75,3 +96,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
 }
 
 export { app, startServer };
+export default app;

@@ -173,3 +173,17 @@ npm start
 ```
 
 The API exposes `/api/health` for health checks and `/` as a basic API status response.
+
+## Vercel deployment
+
+The repository root includes `api/index.js`, which adapts the Express application to Vercel's Node.js serverless runtime, and `vercel.json`, which routes requests to it.
+
+Deploy from the repository root and configure these environment variables for both Production and Preview:
+
+```dotenv
+MONGODB_URI=your_mongodb_connection_string
+NODE_ENV=production
+CLIENT_ORIGIN=https://your-client-domain.vercel.app
+```
+
+Use a comma-separated `CLIENT_ORIGIN` value if separate preview or production client domains are allowed. MongoDB Atlas must also allow Vercel connections under Network Access.
